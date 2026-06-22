@@ -1,0 +1,12 @@
+(* MLB for the sml-openapi library. Two vendored parsers back the two input
+ * syntaxes:
+ *   - sml-json (which bundles sml-parsec) parses JSON OpenAPI documents;
+ *   - sml-yaml parses YAML OpenAPI documents (its own sml-parsec copy is kept
+ *     `local` inside its basis, and is byte-identical to sml-json's copy).
+ * Both are brought in WITHOUT a `local` wrapper here so consumers (tests,
+ * examples) can use `Json` / `JsonPretty` / `Yaml` alongside `OpenApi`. *)
+$(SML_LIB)/basis/basis.mlb
+../lib/github.com/sjqtentacles/sml-json/src/json.mlb
+../lib/github.com/sjqtentacles/sml-yaml/lib/github.com/sjqtentacles/sml-yaml/sources.mlb
+openapi.sig
+openapi.sml

@@ -1,0 +1,10 @@
+(* Test executable basis: the OpenAPI library (which pulls in the vendored
+ * sml-json + sml-yaml + sml-parsec cores) plus the harness and runner. *)
+$(SML_LIB)/basis/basis.mlb
+
+../src/openapi.mlb
+
+harness.sml
+test.sml
+entry.sml
+main.sml
