@@ -7,6 +7,6 @@
  * examples) can use `Json` / `JsonPretty` / `Yaml` alongside `OpenApi`. *)
 $(SML_LIB)/basis/basis.mlb
 ../lib/github.com/sjqtentacles/sml-json/src/json.mlb
-../lib/github.com/sjqtentacles/sml-yaml/lib/github.com/sjqtentacles/sml-yaml/sources.mlb
+../lib/github.com/sjqtentacles/sml-yaml/sources.mlb
 openapi.sig
 openapi.sml
