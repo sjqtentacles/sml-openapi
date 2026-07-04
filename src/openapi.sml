@@ -54,7 +54,10 @@ struct
 
   (* Render any scalar to a string (used for `required` / `enum` members). *)
   fun scalarStr (Json.JStr s)  = s
-    | scalarStr (Json.JInt n)  = Int.toString n
+    (* `JInt` is arbitrary-precision (`IntInf.int`); render it directly with
+       `IntInf.toString` so large integers survive losslessly and print
+       identically under MLton (fixed-width default `int`) and Poly/ML. *)
+    | scalarStr (Json.JInt n)  = IntInf.toString n
     | scalarStr (Json.JBool b) = Bool.toString b
     | scalarStr Json.JNull     = "null"
     | scalarStr (Json.JReal _) = oerr "unexpected real scalar"
@@ -189,7 +192,11 @@ struct
       case y of
           Yaml.Null    => Json.JNull
         | Yaml.Bool b  => Json.JBool b
-        | Yaml.Int i   => Json.JInt (IntInf.toInt i)
+          (* Both carry `IntInf.int`, so the bridge is the identity -- no
+             conversion. The old `IntInf.toInt` narrowed to a machine `int` and
+             would raise `Overflow` on integers past this compiler's `Int`
+             range (e.g. large ids/timestamps past ~2^31 under MLton). *)
+        | Yaml.Int i   => Json.JInt i
         | Yaml.Float r => Json.JReal r
         | Yaml.Str s   => Json.JStr s
         | Yaml.Seq xs  => Json.JArr (List.map yamlToJson xs)
@@ -199,7 +206,9 @@ struct
       case j of
           Json.JNull   => Yaml.Null
         | Json.JBool b => Yaml.Bool b
-        | Json.JInt n  => Yaml.Int (IntInf.fromInt n)
+          (* Both carry `IntInf.int`, so the bridge is the identity -- the old
+             `IntInf.fromInt` was a no-op widen and is dropped. *)
+        | Json.JInt n  => Yaml.Int n
         | Json.JReal r => Yaml.Float r
         | Json.JStr s  => Yaml.Str s
         | Json.JArr xs => Yaml.Seq (List.map jsonToYaml xs)

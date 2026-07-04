@@ -185,14 +185,14 @@ examples/
   demo.sml       parse YAML / inspect / serialize JSON / round-trip
 test/
   harness.sml    shared assertion harness
-  test.sml       Petstore-lite in JSON and YAML; equality + round-trips (32 checks)
+  test.sml       Petstore-lite in JSON and YAML; equality + round-trips (39 checks)
   entry.sml / main.sml
 tools/polybuild  Poly/ML build wrapper
 ```
 
 ## Tests
 
-32 deterministic checks against a Petstore-lite OpenAPI 3.0 spec supplied in
+39 deterministic checks against a Petstore-lite OpenAPI 3.0 spec supplied in
 **both** JSON and the equivalent YAML: top-level fields, servers, the `/pets`
 path with `get` (operationId `listPets`, a `200` response whose schema is an
 array of `$ref` `#/components/schemas/Pet`) and `post` (a required
@@ -201,6 +201,16 @@ array of `$ref` `#/components/schemas/Pet`) and `post` (a required
 encodings are asserted to parse to the same model, and both JSON and YAML
 serialization are re-parsed to confirm structural round-trips. Run
 `make all-tests` to verify identical output under both compilers.
+
+Integers are handled losslessly. `sml-json`'s `JInt` and `sml-yaml`'s `Int`
+both carry an arbitrary-precision `IntInf.int`, so the YAML↔JSON bridge is the
+identity — a value larger than a machine `int` (e.g. a millisecond epoch such
+as `1700000000000`, past 2^31) parses, converts and re-serializes without loss
+or overflow. This holds identically under MLton (whose default `int` is a
+fixed-width 32-bit type) and Poly/ML (a fixed-width 63-bit `int`); on both,
+`IntInf` is arbitrary precision. A dedicated boundary test exercises this path
+end to end (it previously crashed, because the bridge narrowed via
+`IntInf.toInt` and the parser used fixed-width `Int.fromString`/`Int.toString`).
 
 ## License
 

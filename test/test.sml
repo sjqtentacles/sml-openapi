@@ -202,6 +202,64 @@ struct
       val () = checkRaises "parseJson raises on garbage" (fn () => O.parseJson "{ not valid")
       val () = checkBool "parseOpt NONE on garbage" (true, not (isSome (O.parseOpt "{ : : :")))
       val () = checkBool "parseOpt SOME on valid" (true, isSome (O.parseOpt jsonSpec))
+
+      (* ---------- large integers survive the YAML<->JSON bridge ----------
+         `1700000000000` (a millisecond epoch) is > 2^31, so it does not fit a
+         fixed-width 32-bit `int` (MLton's default; Poly/ML's `int` is 63-bit,
+         also fixed-width). Both compilers' `IntInf` is arbitrary precision.
+         Before `JInt` became `IntInf.int` this value round-tripped WRONG or
+         CRASHED: the YAML->JSON bridge's `IntInf.toInt` raised `Overflow`, and
+         `Int.fromString`/`Int.toString` overflowed under 32-bit MLton. We place
+         it in an `enum`, whose members are carried through the typed model as
+         rendered scalars (`scalarStr (Json.JInt n) = IntInf.toString n`), so the
+         value survives parse -> model -> re-serialize end to end. *)
+      val () = section "large integers (YAML<->JSON, > 2^31)"
+      val bigYaml =
+        "openapi: '3.0.0'\n\
+        \info:\n\
+        \  title: Big\n\
+        \  version: '1.0.0'\n\
+        \paths: {}\n\
+        \components:\n\
+        \  schemas:\n\
+        \    Stamp:\n\
+        \      type: integer\n\
+        \      enum:\n\
+        \        - 1700000000000\n"
+      val bigJson =
+        "{\n\
+        \  \"openapi\": \"3.0.0\",\n\
+        \  \"info\": { \"title\": \"Big\", \"version\": \"1.0.0\" },\n\
+        \  \"paths\": {},\n\
+        \  \"components\": {\n\
+        \    \"schemas\": {\n\
+        \      \"Stamp\": { \"type\": \"integer\", \"enum\": [ 1700000000000 ] }\n\
+        \    }\n\
+        \  }\n\
+        \}"
+      (* Pull the single enum member out of the Stamp schema. *)
+      fun stampEnum (m : O.openapi) =
+        case #components m of
+            SOME { schemas = [ (_, O.Schema { enum, ... }) ] } => enum
+          | _ => [ "<no Stamp schema>" ]
+      val myBig = O.parseYaml bigYaml
+      val mjBig = O.parseJson bigJson
+      val () = checkStringList "YAML large int preserved losslessly"
+                 (["1700000000000"], stampEnum myBig)
+      val () = checkStringList "JSON large int preserved losslessly"
+                 (["1700000000000"], stampEnum mjBig)
+      val () = checkBool "YAML and JSON large-int models equal"
+                 (true, O.equal (myBig, mjBig))
+      (* Full YAML<->JSON round-trips through both serializers (the bridge path
+         that used to crash on `IntInf.toInt`). *)
+      val () = checkBool "large int survives parseJson (toJson m)"
+                 (true, O.equal (O.parseJson (O.toJson mjBig), mjBig))
+      val () = checkBool "large int survives parseYaml (toYaml m)"
+                 (true, O.equal (O.parseYaml (O.toYaml myBig), myBig))
+      val () = checkStringList "large int still intact after JSON round-trip"
+                 (["1700000000000"], stampEnum (O.parseJson (O.toJson mjBig)))
+      val () = checkStringList "large int still intact after YAML round-trip"
+                 (["1700000000000"], stampEnum (O.parseYaml (O.toYaml myBig)))
     in
       Harness.run ()
     end
