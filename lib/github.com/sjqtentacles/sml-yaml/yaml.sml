@@ -523,13 +523,44 @@ struct
         | #"\t" => "\\t" | #"\r" => "\\r" | _ => String.str c
     in "\"" ^ String.concat (List.map esc (String.explode s)) ^ "\"" end
 
+  (* Deterministic real formatting: Real.toString picks a shortest-repr
+     algorithm that MLton and Poly/ML do not agree on for every value (e.g.
+     0.001 prints as "1E~3" under one and "0.001" under the other), which
+     would make Yaml.toString/toJsonString output depend on the compiler.
+     This instead searches Real.fmt FIX(0), FIX(1), ... for the first
+     fixed-decimal rendering that reparses to the same real -- Real.fmt is
+     byte-identical across both compilers, so this is too. Falls back to
+     scientific notation only for magnitudes that don't round-trip within
+     15 fixed digits. *)
+  fun fmtRealDet r =
+    if Real.isNan r then "nan"
+    else if Real.== (r, Real.posInf) then "inf"
+    else if Real.== (r, Real.negInf) then "~inf"
+    else
+      let
+        val neg = r < 0.0
+        val a = Real.abs r
+        fun tryDigits n =
+          if n > 15 then NONE
+          else
+            let val s = Real.fmt (StringCvt.FIX (SOME n)) a
+            in case Real.fromString s of
+                   SOME a' => if Real.== (a', a) then SOME s else tryDigits (n + 1)
+                 | NONE => tryDigits (n + 1)
+            end
+        val body =
+          case tryDigits 0 of
+              SOME s => s
+            | NONE => Real.fmt (StringCvt.SCI (SOME 16)) a
+      in if neg then "~" ^ body else body end
+
   fun scalarToString v =
     case v of
       Null => "null"
     | Bool true => "true"
     | Bool false => "false"
     | Int i => IntInf.toString i
-    | Float r => Real.toString r
+    | Float r => fmtRealDet r
     | Str s => if needsQuote s then quoteStr s else s
     | _ => raise Fail "scalarToString: not a scalar"
 
@@ -668,7 +699,7 @@ struct
       JNull    => "null"
     | JBool b  => if b then "true" else "false"
     | JInt i   => fixSign (IntInf.toString i)
-    | JFloat r => fixSign (Real.toString r)
+    | JFloat r => fixSign (fmtRealDet r)
     | JStr s   => jsonQuote s
     | JArr xs  => "[" ^ String.concatWith "," (List.map jsonToString xs) ^ "]"
     | JObj kvs =>
