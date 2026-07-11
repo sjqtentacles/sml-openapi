@@ -24,19 +24,24 @@ jobs:
       - name: Run example
         run: make example
       - name: Capture raw output
-        run: ./bin/test-mlton > test-out.txt
+        run: |
+          ./bin/test-mlton > test-out.txt
+          make -s example > demo-out.txt
       - uses: actions/upload-artifact@v4
         with:
           name: out-mlton
-          path: test-out.txt
+          path: |
+            test-out.txt
+            demo-out.txt
 
   polyml:
-    name: Poly/ML (test)
+    name: Poly/ML (test + example)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # The Ubuntu apt package is Poly/ML 5.7.1 (2017); build a current
-      # Poly/ML from source instead, and cache the install.
+      # The Ubuntu apt package is Poly/ML 5.7.1 (2017), whose X86 code generator
+      # crashes on heavy arithmetic code. Build a current Poly/ML from source
+      # instead, and cache the install.
       - name: Cache Poly/ML
         id: cache-polyml
         uses: actions/cache@v4
@@ -58,15 +63,19 @@ jobs:
         run: |
           echo "/opt/polyml/bin" >> "$GITHUB_PATH"
           echo "LD_LIBRARY_PATH=/opt/polyml/lib:${LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
-      # This repo's Poly/ML target hand-rolls a printf|poly pipe (no linked
-      # bin/test-poly binary), so capture via `make -s` rather than
-      # assuming a binary exists.
+      # This repo's Poly/ML targets hand-roll a printf|poly pipe (no linked
+      # bin/test-poly binary), so capture via `make -s` rather than assuming
+      # a binary exists.
       - name: Capture raw output
-        run: make -s test-poly > test-out.txt
+        run: |
+          make -s test-poly > test-out.txt
+          make -s example-poly > demo-out.txt
       - uses: actions/upload-artifact@v4
         with:
           name: out-poly
-          path: test-out.txt
+          path: |
+            test-out.txt
+            demo-out.txt
 
   byte-identical:
     name: Byte-identical output
@@ -83,3 +92,5 @@ jobs:
           path: poly
       - name: Diff test output
         run: diff mlton/test-out.txt poly/test-out.txt
+      - name: Diff example output
+        run: diff mlton/demo-out.txt poly/demo-out.txt

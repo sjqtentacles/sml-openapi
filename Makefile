@@ -25,7 +25,7 @@ SRCS       := $(wildcard $(PARSEC)/*.sml $(PARSEC)/*.sig $(PARSEC)/*.mlb) \
               $(wildcard src/*.sml src/*.sig src/*.mlb) \
               $(wildcard test/*.sml) $(TEST_MLB)
 
-.PHONY: all test poly test-poly verify-identical all-tests example clean
+.PHONY: all test poly test-poly verify-identical all-tests example example-poly clean
 
 all: $(BIN)/test-mlton
 
@@ -47,6 +47,14 @@ test: $(BIN)/test-mlton
 # model, then the test driver.
 poly test-poly:
 	printf 'use "$(PARSEC)/stream.sig";\nuse "$(PARSEC)/parsec.sig";\nuse "$(PARSEC)/parsecfn.sml";\nuse "$(PARSEC)/charstream.sml";\nuse "$(PARSEC)/charparseccore.sml";\nuse "$(PARSEC)/charparsec.sig";\nuse "$(PARSEC)/charparsec.sml";\nuse "$(PARSEC)/expr.sig";\nuse "$(PARSEC)/exprfn.sml";\nuse "$(PARSEC)/charexpr.sml";\nuse "$(PARSEC)/tokenstream.sml";\nuse "$(JSONDIR)/src/json.sig";\nuse "$(JSONDIR)/src/json.sml";\nuse "$(JSONDIR)/src/jsonPretty.sml";\nuse "$(YAMLDIR)/yaml.sig";\nuse "$(YAMLDIR)/yaml.sml";\nuse "src/openapi.sig";\nuse "src/openapi.sml";\nuse "test/harness.sml";\nuse "test/test.sml";\nuse "test/entry.sml";\nuse "test/main.sml";\n' | $(POLY) -q --error-exit
+
+# Demo under Poly/ML: same single-parsec load order as test-poly (openapi
+# vendors both sml-json and sml-yaml, each carrying a byte-identical
+# sml-parsec; loading parsec once avoids two incompatible CharParsec types,
+# which is also why polybuild's path-based dedup can't be used here), ending
+# with the demo instead of the test driver.
+example-poly:
+	printf 'use "$(PARSEC)/stream.sig";\nuse "$(PARSEC)/parsec.sig";\nuse "$(PARSEC)/parsecfn.sml";\nuse "$(PARSEC)/charstream.sml";\nuse "$(PARSEC)/charparseccore.sml";\nuse "$(PARSEC)/charparsec.sig";\nuse "$(PARSEC)/charparsec.sml";\nuse "$(PARSEC)/expr.sig";\nuse "$(PARSEC)/exprfn.sml";\nuse "$(PARSEC)/charexpr.sml";\nuse "$(PARSEC)/tokenstream.sml";\nuse "$(JSONDIR)/src/json.sig";\nuse "$(JSONDIR)/src/json.sml";\nuse "$(JSONDIR)/src/jsonPretty.sml";\nuse "$(YAMLDIR)/yaml.sig";\nuse "$(YAMLDIR)/yaml.sml";\nuse "src/openapi.sig";\nuse "src/openapi.sml";\nuse "examples/demo.sml";\n' | $(POLY) -q --error-exit
 
 all-tests: test test-poly verify-identical
 
